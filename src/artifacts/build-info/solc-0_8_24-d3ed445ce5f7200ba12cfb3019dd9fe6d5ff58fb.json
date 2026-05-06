@@ -1,0 +1,42 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_24-d3ed445ce5f7200ba12cfb3019dd9fe6d5ff58fb",
+  "solcVersion": "0.8.24",
+  "solcLongVersion": "0.8.24+commit.e11b9ed9",
+  "compilerType": "solc",
+  "userSourceNameMap": {
+    "contracts/DiscountVault.sol": "project/contracts/DiscountVault.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "shanghai",
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode.linkReferences",
+            "evm.bytecode.object",
+            "evm.bytecode.opcodes",
+            "evm.bytecode.sourceMap",
+            "evm.deployedBytecode.immutableReferences",
+            "evm.deployedBytecode.linkReferences",
+            "evm.deployedBytecode.object",
+            "evm.deployedBytecode.opcodes",
+            "evm.deployedBytecode.sourceMap",
+            "evm.methodIdentifiers"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/DiscountVault.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.24;\n\ncontract DiscountVault {\n    struct Campaign {\n        uint256 id;\n        bytes32 secretHash; // In a real ZKP, this would be a verification key, and the proof would be verified using it. For this MVP, we use a simple hash.\n        uint256 discountPercentage;\n        bool isActive;\n    }\n\n    mapping(uint256 => Campaign) public campaigns;\n    uint256 public nextCampaignId = 1;\n\n    event CampaignCreated(uint256 indexed campaignId, uint256 discountPercentage);\n    event AttributionLogged(uint256 indexed campaignId, address indexed buyer, uint256 originalPrice, uint256 finalPrice);\n\n    function createCampaign(bytes32 _secretHash, uint256 _discountPercentage) external returns (uint256) {\n        require(_discountPercentage <= 100, \"Discount cannot exceed 100%\");\n        \n        uint256 id = nextCampaignId++;\n        campaigns[id] = Campaign({\n            id: id,\n            secretHash: _secretHash,\n            discountPercentage: _discountPercentage,\n            isActive: true\n        });\n\n        emit CampaignCreated(id, _discountPercentage);\n        return id;\n    }\n\n    // This function simulates the ZKP verification and the checkout process.\n    // The user sends the secret string. The contract hashes it and checks if it matches the campaign's secretHash.\n    // In a real ZKP system, the user would send a Proof (bytes) and Public Inputs, and the contract would call a Verifier contract.\n    function checkoutWithAttribution(uint256 _campaignId, string calldata _secretProof, uint256 _price) external payable {\n        Campaign memory campaign = campaigns[_campaignId];\n        require(campaign.isActive, \"Campaign is not active\");\n\n        // Verify the \"ZKP\" (in this MVP, we verify the hash preimage)\n        bytes32 generatedHash = sha256(abi.encodePacked(_secretProof));\n        require(generatedHash == campaign.secretHash, \"Invalid attribution proof!\");\n\n        // Apply discount\n        uint256 discountAmount = (_price * campaign.discountPercentage) / 100;\n        uint256 finalPrice = _price - discountAmount;\n\n        // In a real contract, we'd transfer funds here or check msg.value\n        // require(msg.value >= finalPrice, \"Insufficient funds\");\n\n        emit AttributionLogged(_campaignId, msg.sender, _price, finalPrice);\n    }\n}\n"
+      }
+    }
+  }
+}
